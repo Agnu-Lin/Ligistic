@@ -83,7 +83,7 @@ if df is not None:
         if st.button("訓練模型（SMOTE & Weighted）"):
             # SMOTE
             smote = SMOTE(random_state=42)
-            X_res, y_res = smote.fit_resample(X_train, y_train)
+            X_res, y_res = smote.fit_resample(X_train, np.ravel(y_train))
             model_smote = LogisticRegression()
             model_smote.fit(X_res, y_res)
             st.session_state['model_smote'] = model_smote
@@ -93,7 +93,7 @@ if df is not None:
             classes, counts = np.unique(y_train, return_counts=True)
             weights = {k: total/(2*v) for k, v in zip(classes, counts)}
             model_weighted = LogisticRegression(class_weight=weights)
-            model_weighted.fit(X_train, y_train)
+            model_weighted.fit(X_train, np.ravel(y_train))
             st.session_state['model_weighted'] = model_weighted
 
             st.success("模型訓練完成，可以下方比較分析。")
