@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import io
 
 st.set_page_config(page_title="羅吉斯迴歸比較分析", layout="wide")
-st.title("羅吉斯迴歸分析工具")
+st.title("羅吉斯迴歸分析工具 | 手動選標籤與特徵 | SMOTE & Weighted 比較")
 
 # 數據上傳/示例
 st.sidebar.header("數據來源")
@@ -59,7 +59,7 @@ if df is not None:
         st.session_state['label_col'] = label_col
         st.session_state['feature_cols'] = feature_cols
         X = df[feature_cols]
-        y = df[label_col].values
+        y = df[label_col]
 
         # 前處理
         st.sidebar.header("前處理")
@@ -73,7 +73,7 @@ if df is not None:
 
         # 訓練/測試分割
         X_train, X_test, y_train, y_test = train_test_split(
-            X.values, y, test_size=0.2, random_state=42, stratify=y
+            X.values, y.values, test_size=0.2, random_state=42, stratify=y.values
         )
         st.session_state['X_train'] = X_train
         st.session_state['X_test'] = X_test
@@ -81,23 +81,29 @@ if df is not None:
         st.session_state['y_test'] = y_test
 
         if st.button("訓練模型（SMOTE & Weighted）"):
-            # SMOTE
-            smote = SMOTE(random_state=42)
-            X_res, y_res = smote.fit_resample(X_train, np.ravel(y_train))
-            model_smote = LogisticRegression()
-            model_smote.fit(X_res, y_res)
-            st.session_state['model_smote'] = model_smote
+            # y 一定要是一維 array 且不能有 nan
+            y_train_1d = np.array(y_train).ravel()
+            if np.any(pd.isnull(y_train_1d)):
+                st.error("標籤欄位（y）有缺失值，請檢查數據！")
+            else:
+                try:
+                    smote = SMOTE(random_state=42)
+                    X_res, y_res = smote.fit_resample(X_train, y_train_1d)
+                    model_smote = LogisticRegression()
+                    model_smote.fit(X_res, y_res)
+                    st.session_state['model_smote'] = model_smote
 
-            # Weighted
-            total = len(y_train)
-            classes, counts = np.unique(y_train, return_counts=True)
-            weights = {k: total/(2*v) for k, v in zip(classes, counts)}
-            model_weighted = LogisticRegression(class_weight=weights)
-            model_weighted.fit(X_train, np.ravel(y_train))
-            st.session_state['model_weighted'] = model_weighted
+                    total = len(y_train_1d)
+                    classes, counts = np.unique(y_train_1d, return_counts=True)
+                    weights = {k: total/(2*v) for k, v in zip(classes, counts)}
+                    model_weighted = LogisticRegression(class_weight=weights)
+                    model_weighted.fit(X_train, y_train_1d)
+                    st.session_state['model_weighted'] = model_weighted
 
-            st.success("模型訓練完成，可以下方比較分析。")
-            st.session_state['analyzed'] = True
+                    st.success("模型訓練完成，可以下方比較分析。")
+                    st.session_state['analyzed'] = True
+                except Exception as e:
+                    st.error(f"模型訓練錯誤：{e}")
 
 if st.session_state.get('analyzed', False):
     X_test = st.session_state['X_test']
